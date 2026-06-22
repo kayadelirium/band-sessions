@@ -17,6 +17,7 @@ export default function App() {
   const [notesSlug, setNotesSlug] = useState<string | null>(null);
   const [newProjectSlug, setNewProjectSlug] = useState<string | null>(null); // null = скрыт, "" = открыт
   const [initingWorkspace, setInitingWorkspace] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     invoke<LocalConfig>("get_local_config")
@@ -94,12 +95,27 @@ export default function App() {
         <span className="app__title">band sessions</span>
         <div className="app__meta">
           <span className="app__user">{config!.user_name}</span>
-          <button className="btn btn--ghost btn--sm" onClick={refreshTracks}>
+          <button className="btn btn--ghost btn--sm app__meta-btn" onClick={refreshTracks}>
             обновить
           </button>
-          <button className="btn btn--ghost btn--sm" onClick={() => setShowSetup(true)}>
+          <button className="btn btn--ghost btn--sm app__meta-btn" onClick={() => setShowSetup(true)}>
             настройки
           </button>
+          <div className="app__menu-wrap">
+            <button className="btn btn--ghost btn--sm app__menu-btn" onClick={() => setMenuOpen(o => !o)}>
+              ···
+            </button>
+            {menuOpen && (
+              <div className="app__dropdown" onMouseLeave={() => setMenuOpen(false)}>
+                <button className="app__dropdown-item" onClick={() => { refreshTracks(); setMenuOpen(false); }}>
+                  обновить
+                </button>
+                <button className="app__dropdown-item" onClick={() => { setShowSetup(true); setMenuOpen(false); }}>
+                  настройки
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
