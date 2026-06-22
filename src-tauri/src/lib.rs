@@ -1,7 +1,7 @@
 use chrono::Utc;
 use notify::{recommended_watcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -159,9 +159,19 @@ fn find_variants(dir: &PathBuf) -> Vec<String> {
 
 fn get_latest_mtime(dir: &PathBuf, variants: &[String]) -> Option<String> {
     use std::time::SystemTime;
-    let latest = variants.iter().filter_map(|v| {
-        fs::metadata(dir.join(v)).ok()?.modified().ok()
-    }).max();
+    fn walk_mtime(path: &PathBuf) -> Option<SystemTime> {
+        let meta = fs::metadata(path).ok()?;
+        if meta.is_dir() {
+            fs::read_dir(path).ok()?.flatten()
+                .filter_map(|e| walk_mtime(&e.path()))
+                .max()
+        } else {
+            meta.modified().ok()
+        }
+    }
+    let latest = variants.iter()
+        .filter_map(|v| walk_mtime(&dir.join(v)))
+        .max();
     latest.map(|t| {
         let dt: chrono::DateTime<Utc> = t.into();
         dt.to_rfc3339()
@@ -249,6 +259,10 @@ fn start_watcher(app: AppHandle) -> Result<(), String> {
 
     let group = config.group_folder_path.clone();
     let projects = projects_path(&group);
+
+    // Убиваем старый watcher если есть
+    *app.state::<WatcherHandle>().0.lock().unwrap() = None;
+
     if !projects.exists() {
         return Ok(());
     }
@@ -267,44 +281,100 @@ fn start_watcher(app: AppHandle) -> Result<(), String> {
     let app_thread = app.clone();
     let group_thread = group.clone();
     std::thread::spawn(move || {
-        let mut last_seen: HashMap<String, Instant> = HashMap::new();
-        let debounce = Duration::from_secs(3);
+        let debounce = Duration::from_secs(5);
+        let tick = Duration::from_millis(500);
+        let daw_check_interval = Duration::from_secs(5);
 
-        while let Ok(event) = rx.recv() {
-            let Ok(event) = event else { continue };
+        let mut pending_tracks: HashMap<String, Instant> = HashMap::new();
+        let mut last_variant: HashMap<String, String> = HashMap::new();
+        let mut last_processed: HashMap<String, Instant> = HashMap::new(); // когда последний раз обрабатывали slug
+        let mut pending_session = false;
+        let mut session_last_event = Instant::now();
+        let mut auto_locked: HashSet<String> = HashSet::new();
+        let mut last_daw_check = Instant::now();
+        let min_process_interval = Duration::from_secs(30);
 
-            for path in event.paths {
-                let file_name = match path.file_name().and_then(|n| n.to_str()) {
-                    Some(n) => n.to_string(),
-                    None => continue,
-                };
-
-                // Любое изменение .session.json → перечитываем все треки
-                if file_name == ".session.json" {
-                    let now = Instant::now();
-                    if last_seen.get("session").map_or(true, |t| now.duration_since(*t) > debounce) {
-                        last_seen.insert("session".to_string(), now);
-                        let tracks = scan_projects(&group_thread);
-                        let _ = app_thread.emit("tracks-updated", &tracks);
-                    }
-                    continue;
-                }
-
-                // Изменение любого варианта трека
-                let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-                if TRACK_EXTENSIONS.contains(&ext) {
-                    // Находим slug из пути
+        loop {
+            match rx.recv_timeout(tick) {
+                Ok(Ok(event)) => {
                     let projects_root = projects_path(&group_thread);
-                    if let Ok(rel) = path.strip_prefix(&projects_root) {
-                        if let Some(slug) = rel.components().next()
-                            .and_then(|c| c.as_os_str().to_str())
-                        {
-                            let now = Instant::now();
-                            if last_seen.get(slug).map_or(true, |t| now.duration_since(*t) > debounce) {
-                                last_seen.insert(slug.to_string(), now);
-                                handle_project_file_changed(&app_thread, &group_thread, slug);
+                    for path in event.paths {
+                        let file_name = match path.file_name().and_then(|n| n.to_str()) {
+                            Some(n) => n.to_string(),
+                            None => continue,
+                        };
+
+                        if file_name == ".session.json" {
+                            pending_session = true;
+                            session_last_event = Instant::now();
+                            continue;
+                        }
+
+                        // Находим компонент пути с расширением .band/.logicx
+                        let variant_name = path.ancestors().find_map(|a| {
+                            let ext = a.extension()?.to_str()?;
+                            if TRACK_EXTENSIONS.contains(&ext) {
+                                a.file_name()?.to_str().map(|s| s.to_string())
+                            } else {
+                                None
+                            }
+                        });
+
+                        if variant_name.is_some() {
+                            if let Ok(rel) = path.strip_prefix(&projects_root) {
+                                if let Some(slug) = rel.components().next()
+                                    .and_then(|c| c.as_os_str().to_str())
+                                {
+                                    if let Some(v) = variant_name {
+                                        last_variant.insert(slug.to_string(), v);
+                                    }
+                                    if !auto_locked.contains(slug) {
+                                        if auto_acquire_if_free(&app_thread, &group_thread, slug) {
+                                            auto_locked.insert(slug.to_string());
+                                        }
+                                    }
+                                    pending_tracks.insert(slug.to_string(), Instant::now());
+                                }
                             }
                         }
+                    }
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+                _ => {}
+            }
+
+            let now = Instant::now();
+
+            if pending_session && now.duration_since(session_last_event) >= debounce {
+                pending_session = false;
+                let tracks = scan_projects(&group_thread);
+                let _ = app_thread.emit("tracks-updated", &tracks);
+            }
+
+            // Trailing-edge: обрабатываем треки когда события затихли И прошёл min_process_interval
+            let ready: Vec<String> = pending_tracks.iter()
+                .filter(|(slug, last_event)| {
+                    let quiet = now.duration_since(**last_event) >= debounce;
+                    let cooled = last_processed.get(*slug)
+                        .map_or(true, |t| now.duration_since(*t) >= min_process_interval);
+                    quiet && cooled
+                })
+                .map(|(s, _)| s.clone())
+                .collect();
+
+            for slug in ready {
+                last_processed.insert(slug.clone(), now);
+                pending_tracks.remove(&slug);
+                let variant = last_variant.get(&slug).cloned();
+                handle_project_file_changed(&app_thread, &group_thread, &slug, variant.as_deref());
+            }
+
+            // Детектируем закрытие DAW → авто-снимаем лок
+            if !auto_locked.is_empty() && now.duration_since(last_daw_check) >= daw_check_interval {
+                last_daw_check = now;
+                if !is_daw_running() {
+                    for slug in auto_locked.drain() {
+                        auto_release_lock(&app_thread, &group_thread, &slug);
                     }
                 }
             }
@@ -314,7 +384,74 @@ fn start_watcher(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-fn handle_project_file_changed(app: &AppHandle, group_folder: &str, slug: &str) {
+fn is_daw_running() -> bool {
+    ["GarageBand", "Logic Pro X", "Logic Pro"]
+        .iter()
+        .any(|name| {
+            std::process::Command::new("pgrep")
+                .args(["-x", name])
+                .status()
+                .map(|s| s.success())
+                .unwrap_or(false)
+        })
+}
+
+// Захватывает лок если трек свободен. Возвращает true если лок теперь наш.
+fn auto_acquire_if_free(app: &AppHandle, group_folder: &str, slug: &str) -> bool {
+    let Ok(config) = read_local_config(app) else { return false };
+    let Ok(mut session) = read_session(group_folder, slug) else { return false };
+
+    if let Some(ref by) = session.locked_by {
+        // Уже занят — нашим или чужим
+        return by == &config.user_name;
+    }
+
+    let now = Utc::now().to_rfc3339();
+    session.locked_by = Some(config.user_name.clone());
+    session.locked_at = Some(now);
+    let _ = write_session(group_folder, slug, &session);
+
+    let tracks = scan_projects(group_folder);
+    let _ = app.emit("tracks-updated", &tracks);
+    true
+}
+
+// Снимает лок автоматически (при закрытии DAW), пишет историю.
+fn auto_release_lock(app: &AppHandle, group_folder: &str, slug: &str) {
+    let Ok(config) = read_local_config(app) else { return };
+    let Ok(mut session) = read_session(group_folder, slug) else { return };
+
+    if session.locked_by.as_deref() != Some(&config.user_name) {
+        return;
+    }
+
+    let now = Utc::now().to_rfc3339();
+    let new_version = session.version + 1;
+
+    let _ = append_history(
+        group_folder,
+        slug,
+        HistoryEntry {
+            version: new_version,
+            by: config.user_name.clone(),
+            at: now.clone(),
+            note: Some("закрыл DAW".to_string()),
+        },
+    );
+
+    session.version = new_version;
+    session.last_editor = Some(config.user_name.clone());
+    session.last_edited_at = Some(now);
+    session.last_note = Some("закрыл DAW".to_string());
+    session.locked_by = None;
+    session.locked_at = None;
+    let _ = write_session(group_folder, slug, &session);
+
+    let tracks = scan_projects(group_folder);
+    let _ = app.emit("tracks-updated", &tracks);
+}
+
+fn handle_project_file_changed(app: &AppHandle, group_folder: &str, slug: &str, variant: Option<&str>) {
     let Ok(config) = read_local_config(app) else { return };
     let Ok(mut session) = read_session(group_folder, slug) else { return };
 
@@ -322,7 +459,10 @@ fn handle_project_file_changed(app: &AppHandle, group_folder: &str, slug: &str) 
     if held_by_me {
         let now = Utc::now().to_rfc3339();
         let new_version = session.version + 1;
-        let note = Some("сохранение в DAW".to_string());
+        let note = Some(match variant {
+            Some(v) => format!("сохранил {}", v),
+            None => "сохранение".to_string(),
+        });
 
         let _ = append_history(
             group_folder,

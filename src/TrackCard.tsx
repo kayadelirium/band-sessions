@@ -11,8 +11,6 @@ interface Props {
 }
 
 export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory }: Props) {
-  const [noteInput, setNoteInput] = useState("");
-  const [showNoteInput, setShowNoteInput] = useState(false);
   const [showVariants, setShowVariants] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -24,48 +22,6 @@ export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory 
     setLoading(true);
     try {
       const tracks = await invoke<TrackState[]>("init_project", { slug: track.slug });
-      onUpdate(tracks);
-    } catch (e) {
-      alert(String(e));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleAcquire() {
-    setLoading(true);
-    try {
-      const tracks = await invoke<TrackState[]>("acquire_lock", { slug: track.slug, note: null });
-      onUpdate(tracks);
-    } catch (e) {
-      alert(String(e));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleRelease() {
-    setLoading(true);
-    try {
-      const tracks = await invoke<TrackState[]>("release_lock", {
-        slug: track.slug,
-        note: noteInput.trim() || null,
-      });
-      onUpdate(tracks);
-      setNoteInput("");
-      setShowNoteInput(false);
-    } catch (e) {
-      alert(String(e));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleForceRelease() {
-    if (!confirm(`Сбросить лок ${track.lock?.held_by}?`)) return;
-    setLoading(true);
-    try {
-      const tracks = await invoke<TrackState[]>("force_release_lock", { slug: track.slug });
       onUpdate(tracks);
     } catch (e) {
       alert(String(e));
@@ -100,7 +56,6 @@ export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory 
         </div>
       </div>
 
-      {/* Раскрываемый список вариантов */}
       {showVariants && track.variants.length > 0 && (
         <div className="track-card__variants">
           {track.variants.map((v) => (
@@ -134,7 +89,7 @@ export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory 
         )}
         {isLockedByOther && (
           <span className="status status--locked">
-            {track.lock!.held_by} · {formatLockDuration(track.lock!.since)}
+            {track.lock!.held_by} работает прямо сейчас
           </span>
         )}
       </div>
@@ -147,9 +102,9 @@ export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory 
 
       {track.last_activity && !track.uninitialized && (
         <div className="track-card__activity">
-          последнее: {track.last_activity.by}
-          {track.last_activity.at && `, ${formatDate(track.last_activity.at)}`}
+          {track.last_activity.by}
           {track.last_activity.note && ` — ${track.last_activity.note}`}
+          {track.last_activity.at && `, ${formatDate(track.last_activity.at)}`}
         </div>
       )}
 
@@ -159,50 +114,10 @@ export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory 
             инициализировать
           </button>
         )}
-
         {!track.uninitialized && (
-          <>
-            <button className="btn btn--ghost" onClick={onOpenHistory}>
-              история
-            </button>
-
-            {!track.lock && !track.disabled && (
-              <button className="btn btn--primary" onClick={handleAcquire} disabled={loading}>
-                начать работу
-              </button>
-            )}
-
-            {isLockedByMe && !showNoteInput && (
-              <button className="btn btn--finish" onClick={() => setShowNoteInput(true)} disabled={loading}>
-                завершить
-              </button>
-            )}
-
-            {isLockedByMe && showNoteInput && (
-              <div className="track-card__note-row">
-                <input
-                  className="note-input"
-                  placeholder="что сделал? (необязательно)"
-                  value={noteInput}
-                  onChange={(e) => setNoteInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleRelease()}
-                  autoFocus
-                />
-                <button className="btn btn--finish" onClick={handleRelease} disabled={loading}>
-                  ок
-                </button>
-                <button className="btn btn--ghost" onClick={() => setShowNoteInput(false)}>
-                  отмена
-                </button>
-              </div>
-            )}
-
-            {isLockedByOther && (
-              <button className="btn btn--danger" onClick={handleForceRelease} disabled={loading}>
-                сбросить лок
-              </button>
-            )}
-          </>
+          <button className="btn btn--ghost" onClick={onOpenHistory}>
+            история
+          </button>
         )}
       </div>
     </div>

@@ -319,6 +319,7 @@ body {
 .status--locked {
   background: #2e1a1a;
   color: var(--yellow);
+  font-weight: 500;
 }
 
 .status--disabled {

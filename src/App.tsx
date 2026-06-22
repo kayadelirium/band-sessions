@@ -14,6 +14,7 @@ export default function App() {
   const [showSetup, setShowSetup] = useState(false);
   const [historySlug, setHistorySlug] = useState<string | null>(null);
   const [newProjectSlug, setNewProjectSlug] = useState<string | null>(null); // null = скрыт, "" = открыт
+  const [initingWorkspace, setInitingWorkspace] = useState(false);
 
   useEffect(() => {
     invoke<LocalConfig>("get_local_config")
@@ -126,13 +127,23 @@ export default function App() {
             </p>
             <button
               className="btn btn--primary"
+              disabled={initingWorkspace}
               onClick={async () => {
-                await invoke("init_workspace");
-                refreshTracks();
+                setInitingWorkspace(true);
+                try {
+                  await invoke("init_workspace");
+                  await invoke("start_watcher");
+                  await refreshTracks();
+                  setNewProjectSlug("");
+                } catch (e) {
+                  alert(String(e));
+                } finally {
+                  setInitingWorkspace(false);
+                }
               }}
               style={{ marginTop: 8 }}
             >
-              создать структуру папок
+              {initingWorkspace ? "создаём…" : "создать структуру папок"}
             </button>
             <button
               className="btn btn--ghost"
