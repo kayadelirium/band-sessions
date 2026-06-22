@@ -17,8 +17,16 @@ export interface TrackState {
   lock: Lock | null;
   last_activity: LastActivity | null;
   file_modified_at: string | null;
+  track_note: string | null;
+  track_note_at: string | null;
   uninitialized: boolean;
   disabled: boolean;
+}
+
+export interface NoteEntry {
+  by: string;
+  at: string;
+  text: string;
 }
 
 export interface HistoryEntry {

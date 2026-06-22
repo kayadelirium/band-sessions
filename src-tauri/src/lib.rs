@@ -28,13 +28,15 @@ pub struct LastActivity {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TrackState {
     pub slug: String,
-    pub variants: Vec<String>, // все .logicx/.band файлы в папке
+    pub variants: Vec<String>,
     pub version: u32,
     pub lock: Option<Lock>,
     pub last_activity: Option<LastActivity>,
-    pub file_modified_at: Option<String>, // самый свежий mtime среди вариантов
-    pub uninitialized: bool, // папка есть, .session.json нет
-    pub disabled: bool,      // .session.json есть, вариантов не найдено
+    pub file_modified_at: Option<String>,
+    pub track_note: Option<String>,
+    pub track_note_at: Option<String>, // at последней заметки — для обновления
+    pub uninitialized: bool,
+    pub disabled: bool,
 }
 
 /// Что хранится в .session.json каждого трека
@@ -46,6 +48,15 @@ struct SessionJson {
     last_editor: Option<String>,
     last_edited_at: Option<String>,
     last_note: Option<String>,
+    track_note: Option<String>,
+    track_note_at: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct NoteEntry {
+    pub by: String,
+    pub at: String,
+    pub text: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -89,6 +100,10 @@ fn session_json_path(group_folder: &str, slug: &str) -> PathBuf {
 
 fn history_json_path(group_folder: &str, slug: &str) -> PathBuf {
     track_dir(group_folder, slug).join("history.json")
+}
+
+fn notes_json_path(group_folder: &str, slug: &str) -> PathBuf {
+    track_dir(group_folder, slug).join("notes.json")
 }
 
 // ── IO helpers ────────────────────────────────────────────────────────────────
@@ -200,6 +215,8 @@ fn session_to_track_state(slug: &str, session: &SessionJson, dir: &PathBuf) -> T
         lock,
         last_activity,
         file_modified_at,
+        track_note: session.track_note.clone(),
+        track_note_at: session.track_note_at.clone(),
         uninitialized: false,
         disabled,
     }
@@ -233,6 +250,8 @@ fn scan_projects(group_folder: &str) -> Vec<TrackState> {
                     lock: None,
                     last_activity: None,
                     file_modified_at: None,
+                    track_note: None,
+                    track_note_at: None,
                     uninitialized: true,
                     disabled: false,
                 });
@@ -390,6 +409,8 @@ fn is_daw_running() -> bool {
         .any(|name| {
             std::process::Command::new("pgrep")
                 .args(["-x", name])
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
                 .status()
                 .map(|s| s.success())
                 .unwrap_or(false)
@@ -648,6 +669,109 @@ fn open_track_path(app: AppHandle, slug: String, variant: String) -> Result<(), 
     Ok(())
 }
 
+#[tauri::command]
+fn add_track_note(app: AppHandle, slug: String, text: String) -> Result<Vec<TrackState>, String> {
+    let config = read_local_config(&app)?;
+    let group = &config.group_folder_path;
+
+    let entry_at = Utc::now().to_rfc3339();
+    let entry = NoteEntry {
+        by: config.user_name.clone(),
+        at: entry_at.clone(),
+        text: text.clone(),
+    };
+
+    // Дописываем в notes.json
+    let notes_path = notes_json_path(group, &slug);
+    let mut notes: Vec<NoteEntry> = if notes_path.exists() {
+        let raw = fs::read_to_string(&notes_path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&raw).unwrap_or_default()
+    } else {
+        vec![]
+    };
+    notes.push(entry);
+    fs::write(&notes_path, serde_json::to_string_pretty(&notes).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())?;
+
+    // Обновляем track_note в .session.json для отображения на карточке
+    let mut session = read_session(group, &slug)?;
+    session.track_note = Some(text);
+    session.track_note_at = Some(entry_at);
+    write_session(group, &slug, &session)?;
+
+    Ok(scan_projects(group))
+}
+
+#[tauri::command]
+fn update_note(app: AppHandle, slug: String, at: String, text: String) -> Result<Vec<TrackState>, String> {
+    let config = read_local_config(&app)?;
+    let group = &config.group_folder_path;
+    let path = notes_json_path(group, &slug);
+
+    let mut notes: Vec<NoteEntry> = if path.exists() {
+        let raw = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&raw).unwrap_or_default()
+    } else {
+        vec![]
+    };
+
+    if let Some(note) = notes.iter_mut().find(|n| n.at == at) {
+        note.text = text.clone();
+    }
+
+    fs::write(&path, serde_json::to_string_pretty(&notes).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())?;
+
+    // Обновляем track_note если это была последняя заметка
+    let mut session = read_session(group, &slug)?;
+    if session.track_note_at.as_deref() == Some(&at) {
+        session.track_note = Some(text);
+        write_session(group, &slug, &session)?;
+    }
+
+    Ok(scan_projects(group))
+}
+
+#[tauri::command]
+fn delete_note(app: AppHandle, slug: String, at: String) -> Result<Vec<NoteEntry>, String> {
+    let config = read_local_config(&app)?;
+    let group = &config.group_folder_path;
+    let path = notes_json_path(group, &slug);
+
+    let mut notes: Vec<NoteEntry> = if path.exists() {
+        let raw = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+        serde_json::from_str(&raw).unwrap_or_default()
+    } else {
+        vec![]
+    };
+
+    notes.retain(|n| n.at != at);
+    fs::write(&path, serde_json::to_string_pretty(&notes).map_err(|e| e.to_string())?)
+        .map_err(|e| e.to_string())?;
+
+    // Обновляем track_note в session.json: берём последнюю оставшуюся заметку
+    let mut session = read_session(group, &slug)?;
+    session.track_note = notes.last().map(|n| n.text.clone());
+    write_session(group, &slug, &session)?;
+
+    let mut result = notes;
+    result.reverse();
+    Ok(result)
+}
+
+#[tauri::command]
+fn get_notes(app: AppHandle, slug: String) -> Result<Vec<NoteEntry>, String> {
+    let config = read_local_config(&app)?;
+    let path = notes_json_path(&config.group_folder_path, &slug);
+    if !path.exists() {
+        return Ok(vec![]);
+    }
+    let raw = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let mut notes: Vec<NoteEntry> = serde_json::from_str(&raw).unwrap_or_default();
+    notes.reverse();
+    Ok(notes)
+}
+
 // ── App entry ─────────────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -670,6 +794,10 @@ pub fn run() {
             get_history,
             open_track_path,
             start_watcher,
+            add_track_note,
+            get_notes,
+            update_note,
+            delete_note,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

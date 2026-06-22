@@ -4,6 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { LocalConfig, TrackState } from "./types";
 import TrackCard from "./TrackCard";
 import TrackHistory from "./TrackHistory";
+import TrackNotes from "./TrackNotes";
 import Setup from "./Setup";
 import "./App.css";
 
@@ -13,6 +14,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [showSetup, setShowSetup] = useState(false);
   const [historySlug, setHistorySlug] = useState<string | null>(null);
+  const [notesSlug, setNotesSlug] = useState<string | null>(null);
   const [newProjectSlug, setNewProjectSlug] = useState<string | null>(null); // null = скрыт, "" = открыт
   const [initingWorkspace, setInitingWorkspace] = useState(false);
 
@@ -70,6 +72,10 @@ export default function App() {
 
   if (historySlug) {
     return <TrackHistory slug={historySlug} onBack={() => setHistorySlug(null)} />;
+  }
+
+  if (notesSlug) {
+    return <TrackNotes slug={notesSlug} onBack={() => setNotesSlug(null)} onUpdate={setTracks} />;
   }
 
   if (needsSetup || showSetup) {
@@ -161,6 +167,7 @@ export default function App() {
                 currentUser={config!.user_name}
                 onUpdate={setTracks}
                 onOpenHistory={() => setHistorySlug(track.slug)}
+                onOpenNotes={() => setNotesSlug(track.slug)}
               />
             ))}
             {newProjectSlug === null && (

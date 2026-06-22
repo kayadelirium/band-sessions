@@ -8,15 +8,41 @@ interface Props {
   currentUser: string;
   onUpdate: (tracks: TrackState[]) => void;
   onOpenHistory: () => void;
+  onOpenNotes: () => void;
 }
 
-export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory }: Props) {
+export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory, onOpenNotes }: Props) {
   const [showVariants, setShowVariants] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [editingNote, setEditingNote] = useState(false);
+  const [noteInput, setNoteInput] = useState("");
+  const [isNewNote, setIsNewNote] = useState(false);
 
   const isLockedByMe = track.lock?.held_by === currentUser;
   const isLockedByOther = track.lock !== null && !isLockedByMe;
   const name = trackDisplayName(track.slug);
+
+  async function handleSaveNote() {
+    const text = noteInput.trim();
+    if (!text) { setEditingNote(false); return; }
+    setLoading(true);
+    try {
+      const tracks = await invoke<TrackState[]>(
+        !isNewNote && track.track_note_at ? "update_note" : "add_track_note",
+        !isNewNote && track.track_note_at
+          ? { slug: track.slug, at: track.track_note_at, text }
+          : { slug: track.slug, text }
+      );
+      onUpdate(tracks);
+      setEditingNote(false);
+      setNoteInput("");
+      setIsNewNote(false);
+    } catch (e) {
+      alert(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleInit() {
     setLoading(true);
@@ -72,6 +98,50 @@ export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory 
         </div>
       )}
 
+      {!track.uninitialized && !editingNote && (
+        <div className="track-card__note-block">
+          {track.track_note ? (
+            <>
+              <span className="track-card__note-label">последний комментарий</span>
+              <button
+                className="track-card__note-text"
+                onClick={() => { setNoteInput(track.track_note!); setIsNewNote(false); setEditingNote(true); }}
+              >
+                {track.track_note}
+              </button>
+            </>
+          ) : (
+            <span className="track-card__note-empty">заметок пока нет</span>
+          )}
+          <div className="track-card__note-actions">
+            <button className="btn btn--ghost btn--sm" onClick={onOpenNotes}>все заметки</button>
+            <button className="btn btn--ghost btn--sm" onClick={() => { setNoteInput(""); setIsNewNote(true); setEditingNote(true); }}>+</button>
+          </div>
+        </div>
+      )}
+
+      {editingNote && (
+        <div className="track-card__note-edit">
+          <textarea
+            autoFocus
+            className="note-textarea"
+            placeholder="заметка..."
+            value={noteInput}
+            rows={3}
+            onChange={(e) => setNoteInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSaveNote();
+              if (e.key === "Escape") { setEditingNote(false); setNoteInput(""); setIsNewNote(false); }
+            }}
+          />
+          <div className="track-card__note-edit-actions">
+            <span className="track-card__note-hint">⌘↵ сохранить · esc отмена</span>
+            <button className="btn btn--primary btn--sm" onClick={handleSaveNote} disabled={loading}>сохранить</button>
+            <button className="btn btn--ghost btn--sm" onClick={() => { setEditingNote(false); setNoteInput(""); setIsNewNote(false); }}>отмена</button>
+          </div>
+        </div>
+      )}
+
       <div className="track-card__status">
         {track.uninitialized && (
           <span className="status status--uninit">не инициализирован</span>
@@ -115,9 +185,9 @@ export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory 
           </button>
         )}
         {!track.uninitialized && (
-          <button className="btn btn--ghost" onClick={onOpenHistory}>
-            история
-          </button>
+          <>
+            <button className="btn btn--ghost" onClick={onOpenHistory}>история</button>
+          </>
         )}
       </div>
     </div>
