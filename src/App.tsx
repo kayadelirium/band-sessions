@@ -103,7 +103,7 @@ export default function App() {
         </div>
         <div className="header-right">
           <span className="app__user">{config!.user_name}</span>
-          <button className="btn-icon btn-icon--add app__meta-btn" title="новый проект" onClick={() => setNewProjectSlug("")}>
+          <button className="btn-icon btn-icon--add app__meta-btn" title="новый трек" onClick={() => setNewProjectSlug("")}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
@@ -124,7 +124,7 @@ export default function App() {
               <div className="app__dropdown" onMouseLeave={() => setMenuOpen(false)}>
                 <button className="app__dropdown-item" onClick={() => { setNewProjectSlug(""); setMenuOpen(false); }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                  проект
+                  трек
                 </button>
                 <button className="app__dropdown-item" onClick={() => { refreshTracks(); setMenuOpen(false); }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
@@ -145,7 +145,7 @@ export default function App() {
           <div className="new-project-row">
             <input
               autoFocus
-              placeholder="название-проекта"
+              placeholder="название-трека"
               value={newProjectSlug}
               onChange={(e) => setNewProjectSlug(e.target.value)}
               onKeyDown={(e) => {
@@ -164,12 +164,18 @@ export default function App() {
 
         {tracks.length === 0 && newProjectSlug === null ? (
           <div className="empty">
-            <p>треков не найдено</p>
+            <div className="empty__icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+              </svg>
+            </div>
+            <p className="empty__title">треки не найдены</p>
             <p className="empty__hint">
-              если папка <code>projects/</code> ещё не создана — создай её прямо сейчас
+              нажми на кнопку ниже, чтобы создать структуру папок
             </p>
             <button
-              className="btn btn--primary"
+              className="btn-icon btn-icon--empty-init"
+              title="создать структуру папок"
               disabled={initingWorkspace}
               onClick={async () => {
                 setInitingWorkspace(true);
@@ -184,15 +190,11 @@ export default function App() {
                   setInitingWorkspace(false);
                 }
               }}
-              style={{ marginTop: 8 }}
             >
-              {initingWorkspace ? "создаём…" : "создать структуру папок"}
-            </button>
-            <button
-              className="btn btn--ghost"
-              onClick={refreshTracks}
-            >
-              обновить
+              {initingWorkspace
+                ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+              }
             </button>
           </div>
         ) : (

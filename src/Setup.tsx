@@ -92,7 +92,7 @@ export default function Setup({ initial, onSave, onCancel }: Props) {
           </div>
           {!folderPath && (
             <span className="setup__hint">
-              внутри должна быть папка projects/ — создай её заранее в Finder
+              папка projects/ будет создана автоматически при первом запуске
             </span>
           )}
         </div>

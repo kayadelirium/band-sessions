@@ -80,7 +80,7 @@ export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory,
             </button>
           )}
           {track.uninitialized && (
-            <button className="btn-icon btn-icon--add" title="инициализировать трек" disabled={loading} onClick={handleInit}>
+            <button className="btn-icon btn-icon--add" title="подключить трек" disabled={loading} onClick={handleInit}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
               </svg>
@@ -89,10 +89,10 @@ export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory,
           {(track.uninitialized || track.disabled) && (
             <button
               className="btn-icon btn-icon--danger"
-              title="удалить папку трека"
+              title="удалить трек"
               disabled={loading}
               onClick={async () => {
-                if (!confirm(`Удалить трек «${name}»? Это удалит папку целиком.`)) return;
+                if (!confirm(`Удалить «${name}»? Папка трека будет удалена полностью.`)) return;
                 setLoading(true);
                 try {
                   const tracks = await invoke<TrackState[]>("delete_project", { slug: track.slug });
@@ -137,7 +137,7 @@ export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory,
           {track.track_note ? (
             <button
               className="track-card__note-text"
-              title="редактировать заметку"
+              title="редактировать"
               onClick={() => { setNoteInput(track.track_note!); setIsNewNote(false); setEditingNote(true); }}
             >
               {track.track_note}
@@ -146,7 +146,7 @@ export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory,
             <span className="track-card__note-empty">заметок пока нет</span>
           )}
           <div className="track-card__note-actions">
-            <button className="btn-icon" title="все заметки к треку" onClick={onOpenNotes}>
+            <button className="btn-icon" title="заметки" onClick={onOpenNotes}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
               </svg>
@@ -194,16 +194,16 @@ export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory,
         <div className="track-card__activity-block">
           <span className="track-card__note-label">последние действия</span>
           <div className="track-card__activity-status">
-            {track.disabled && <span className="status status--disabled">вариантов не найдено</span>}
+            {track.disabled && <span className="status status--disabled">файлы проекта не найдены</span>}
             {!track.disabled && !track.lock && <span className="status status--free">свободно</span>}
             {isLockedByMe && (
-              <span className="status status--mine">ты работаешь — {formatLockDuration(track.lock!.since)}</span>
+              <span className="status status--mine">ты работаешь · {formatLockDuration(track.lock!.since)}</span>
             )}
             {isLockedByOther && (
               <span className="status status--locked">{track.lock!.held_by} работает прямо сейчас</span>
             )}
             {track.file_modified_at && (
-              <span className="track-card__saved">сохранён {formatLockDuration(track.file_modified_at)} назад</span>
+              <span className="track-card__saved">сохранено {formatLockDuration(track.file_modified_at)} назад</span>
             )}
           </div>
           {track.last_activity && (
@@ -225,7 +225,7 @@ export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory,
 
       {track.uninitialized && (
         <div className="track-card__status">
-          <span className="status status--uninit">не инициализирован</span>
+          <span className="status status--uninit">не подключён</span>
         </div>
       )}
     </div>

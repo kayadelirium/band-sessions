@@ -227,23 +227,35 @@ body {
 }
 
 .empty {
-  color: var(--text-dim);
-  text-align: center;
-  padding: 60px 0;
-  font-size: 13px;
+  grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  grid-column: 1 / -1;
+  justify-content: center;
+  gap: 12px;
+  padding: 80px 24px;
+  text-align: center;
+}
+
+.empty__icon {
+  color: var(--text-dim);
+  opacity: 0.5;
+  margin-bottom: 4px;
+}
+
+.empty__title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+  margin: 0;
 }
 
 .empty__hint {
   font-size: 12px;
   color: var(--text-dim);
-  opacity: 0.7;
-  max-width: 320px;
+  max-width: 420px;
   line-height: 1.6;
+  margin: 0;
 }
 
 .empty__hint code {
@@ -251,6 +263,28 @@ body {
   background: var(--surface-2);
   padding: 1px 5px;
   border-radius: 4px;
+}
+
+.btn-icon--empty-init {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  margin-top: 8px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.btn-icon--empty-init:hover:not(:disabled) {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: #b3aaff;
+}
+
+.btn-icon--empty-init:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* ── Track card ── */

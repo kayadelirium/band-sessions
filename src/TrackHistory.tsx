@@ -46,7 +46,7 @@ export default function TrackHistory({ slug, onBack }: Props) {
 
         {!loading && entries.length === 0 && (
           <div className="empty">
-            история пуста — записи появятся после первого завершения работы
+            история пуста — записи появятся после первого сохранения
           </div>
         )}
 
