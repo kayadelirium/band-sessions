@@ -350,6 +350,8 @@ fn start_watcher(app: AppHandle) -> Result<(), String> {
                                     if !auto_locked.contains(slug) {
                                         if auto_acquire_if_free(&app_thread, &group_thread, slug) {
                                             auto_locked.insert(slug.to_string());
+                                            // Считаем что только что "обработали" — блокирует первые события от открытия DAW
+                                            last_processed.insert(slug.to_string(), Instant::now());
                                         }
                                     }
                                     pending_tracks.insert(slug.to_string(), Instant::now());
