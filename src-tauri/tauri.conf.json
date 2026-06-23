@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "band-sessions",
+  "productName": "Band Sessions",
   "version": "0.1.0",
   "identifier": "com.kayadelirium.band-sessions",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "band-sessions",
+        "title": "Band Sessions",
         "width": 800,
         "height": 600
       }

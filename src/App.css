@@ -140,6 +140,19 @@ body {
   margin-bottom: 20px;
 }
 
+.app__brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.app__icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
 .app__title {
   font-size: 16px;
   font-weight: 700;

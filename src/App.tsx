@@ -92,7 +92,10 @@ export default function App() {
   return (
     <div className="app">
       <header className="app__header">
-        <span className="app__title">band sessions</span>
+        <div className="app__brand">
+          <img src="/icon-32.png" className="app__icon" alt="" />
+          <span className="app__title">band sessions</span>
+        </div>
         <div className="app__meta">
           <span className="app__user">{config!.user_name}</span>
           <button className="btn btn--ghost btn--sm app__meta-btn" onClick={refreshTracks}>
