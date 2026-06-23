@@ -604,6 +604,12 @@ body {
   color: #7ec8a0 !important;
 }
 
+.btn-icon--danger:hover {
+  background: rgba(220, 80, 80, 0.15) !important;
+  border-color: rgba(220, 80, 80, 0.4) !important;
+  color: #e06060 !important;
+}
+
 .btn-icon--accent:disabled {
   opacity: 0.4;
   cursor: not-allowed;

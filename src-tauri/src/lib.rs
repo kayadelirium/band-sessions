@@ -155,7 +155,7 @@ fn append_history(
     fs::write(path, raw).map_err(|e| e.to_string())
 }
 
-const TRACK_EXTENSIONS: &[&str] = &["logicx", "band"];
+const TRACK_EXTENSIONS: &[&str] = &["logicx", "band", "als", "rpp", "ptx", "ptf", "cpr", "bwproject", "flp", "dpdoc"];
 
 fn find_variants(dir: &PathBuf) -> Vec<String> {
     let Ok(entries) = fs::read_dir(dir) else { return vec![] };
@@ -406,11 +406,27 @@ fn start_watcher(app: AppHandle) -> Result<(), String> {
 }
 
 fn is_daw_running() -> bool {
-    ["GarageBand", "Logic Pro X", "Logic Pro"]
+    // Exact match для DAW с предсказуемым именем процесса
+    let exact = ["GarageBand", "Logic Pro X", "Logic Pro", "REAPER", "Pro Tools", "Bitwig Studio", "FL Studio", "Digital Performer"]
         .iter()
         .any(|name| {
             std::process::Command::new("pgrep")
                 .args(["-x", name])
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status()
+                .map(|s| s.success())
+                .unwrap_or(false)
+        });
+
+    if exact { return true; }
+
+    // Частичное совпадение для DAW с версией в имени процесса
+    ["Ableton Live", "Cubase", "Studio One", "Nuendo"]
+        .iter()
+        .any(|name| {
+            std::process::Command::new("pgrep")
+                .args(["-f", name])
                 .stdout(std::process::Stdio::null())
                 .stderr(std::process::Stdio::null())
                 .status()

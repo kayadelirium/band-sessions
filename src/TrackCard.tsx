@@ -79,6 +79,36 @@ export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory,
               <span className="btn-variants__arrow">{showVariants ? "▲" : "▼"}</span>
             </button>
           )}
+          {track.uninitialized && (
+            <button className="btn-icon btn-icon--add" title="инициализировать трек" disabled={loading} onClick={handleInit}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
+              </svg>
+            </button>
+          )}
+          {(track.uninitialized || track.disabled) && (
+            <button
+              className="btn-icon btn-icon--danger"
+              title="удалить папку трека"
+              disabled={loading}
+              onClick={async () => {
+                if (!confirm(`Удалить трек «${name}»? Это удалит папку целиком.`)) return;
+                setLoading(true);
+                try {
+                  const tracks = await invoke<TrackState[]>("delete_project", { slug: track.slug });
+                  onUpdate(tracks);
+                } catch (e) {
+                  alert(String(e));
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 
@@ -198,35 +228,6 @@ export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory,
           <span className="status status--uninit">не инициализирован</span>
         </div>
       )}
-
-      <div className="track-card__actions">
-        {track.uninitialized && (
-          <button className="btn btn--ghost" title="создать .session.json в папке трека" onClick={handleInit} disabled={loading}>
-            инициализировать
-          </button>
-        )}
-        {(track.uninitialized || track.disabled) && (
-          <button
-            className="btn btn--danger"
-            title="удалить папку трека"
-            disabled={loading}
-            onClick={async () => {
-              if (!confirm(`Удалить трек «${name}»? Это удалит папку целиком.`)) return;
-              setLoading(true);
-              try {
-                const tracks = await invoke<TrackState[]>("delete_project", { slug: track.slug });
-                onUpdate(tracks);
-              } catch (e) {
-                alert(String(e));
-              } finally {
-                setLoading(false);
-              }
-            }}
-          >
-            удалить
-          </button>
-        )}
-      </div>
     </div>
   );
 }
