@@ -6,7 +6,7 @@ Desktop-приложение для синхронизации работы на
 
 ## Технологический стек
 
-- **Tauri 2** — десктоп-обёртка (Rust + системный WebView/Safari). Выбран вместо Electron из-за малого размера (~15 МБ против ~150 МБ)
+- **Tauri 2** — десктоп-обёртка (Rust + системный WebView). Выбран вместо Electron из-за малого размера (~15 МБ против ~150 МБ). Поддерживаемые платформы: **macOS, Windows**
 - **React + TypeScript** — интерфейс
 - **Rust** — вся бизнес-логика: чтение/запись файлов, сканирование папок, file watcher
 - **Node.js 24** — требуется (зафиксировано в `.nvmrc`)
@@ -187,7 +187,7 @@ interface NoteEntry {
 ## Особенности реализации
 
 - **`.logicx`, `.band`, `.bwproject`, `.dpdoc` — директории-пакеты** на macOS. Events приходят на файлы внутри, не на пакет целиком. Поиск предка с нужным расширением через `path.ancestors()`. Остальные форматы (`.als`, `.rpp`, `.ptx`, `.ptf`, `.cpr`, `.flp`) — обычные файлы.
-- **DAW detection:** `pgrep -x` для GarageBand, Logic Pro, REAPER, Pro Tools, Bitwig Studio, FL Studio, Digital Performer; `pgrep -f` (частичное совпадение) для Ableton Live, Cubase, Studio One, Nuendo — у них версия входит в имя процесса
+- **DAW detection:** macOS — `pgrep -x` для GarageBand, Logic Pro, REAPER, Pro Tools, Bitwig Studio, FL Studio, Digital Performer; `pgrep -f` для Ableton Live, Cubase, Studio One, Nuendo. Windows — `tasklist /FI "IMAGENAME eq ..."` для точного совпадения, вывод `tasklist` для частичного. Условная компиляция через `#[cfg(target_os)]`
 - **`get_latest_mtime` рекурсивный** — mtime директории-пакета не обновляется при изменении содержимого, поэтому берём максимальный mtime по всем файлам внутри
 - **`pgrep`** проверяет локальные процессы, не удалённые — каждый участник сам определяет момент закрытия DAW. Stdout/stderr направлены в `Stdio::null()` чтобы не засорять консоль
 - **`at`-timestamp как ID заметки** — заметки идентифицируются по RFC3339-метке создания, отдельного числового ID нет

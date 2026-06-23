@@ -438,33 +438,69 @@ fn start_watcher(app: AppHandle) -> Result<(), String> {
 }
 
 fn is_daw_running() -> bool {
-    // Exact match для DAW с предсказуемым именем процесса
-    let exact = ["GarageBand", "Logic Pro X", "Logic Pro", "REAPER", "Pro Tools", "Bitwig Studio", "FL Studio", "Digital Performer"]
-        .iter()
-        .any(|name| {
-            std::process::Command::new("pgrep")
-                .args(["-x", name])
-                .stdout(std::process::Stdio::null())
+    #[cfg(target_os = "windows")]
+    {
+        // На Windows используем tasklist для поиска процессов DAW
+        let exact = [
+            "GarageBand.exe", "Logic Pro.exe", "REAPER.exe",
+            "Pro Tools.exe", "Bitwig Studio.exe", "FL Studio.exe",
+            "Digital Performer.exe",
+        ];
+        let partial = ["Ableton Live", "Cubase", "Studio One", "Nuendo"];
+
+        let found_exact = exact.iter().any(|name| {
+            std::process::Command::new("tasklist")
+                .args(["/FI", &format!("IMAGENAME eq {}", name), "/NH"])
+                .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::null())
-                .status()
-                .map(|s| s.success())
+                .output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).contains(name))
                 .unwrap_or(false)
         });
 
-    if exact { return true; }
+        if found_exact { return true; }
 
-    // Частичное совпадение для DAW с версией в имени процесса
-    ["Ableton Live", "Cubase", "Studio One", "Nuendo"]
-        .iter()
-        .any(|name| {
-            std::process::Command::new("pgrep")
-                .args(["-f", name])
-                .stdout(std::process::Stdio::null())
+        partial.iter().any(|name| {
+            std::process::Command::new("tasklist")
+                .args(["/NH"])
+                .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::null())
-                .status()
-                .map(|s| s.success())
+                .output()
+                .map(|o| String::from_utf8_lossy(&o.stdout).contains(name))
                 .unwrap_or(false)
         })
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        // Exact match для DAW с предсказуемым именем процесса
+        let exact = ["GarageBand", "Logic Pro X", "Logic Pro", "REAPER", "Pro Tools", "Bitwig Studio", "FL Studio", "Digital Performer"]
+            .iter()
+            .any(|name| {
+                std::process::Command::new("pgrep")
+                    .args(["-x", name])
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null())
+                    .status()
+                    .map(|s| s.success())
+                    .unwrap_or(false)
+            });
+
+        if exact { return true; }
+
+        // Частичное совпадение для DAW с версией в имени процесса
+        ["Ableton Live", "Cubase", "Studio One", "Nuendo"]
+            .iter()
+            .any(|name| {
+                std::process::Command::new("pgrep")
+                    .args(["-f", name])
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null())
+                    .status()
+                    .map(|s| s.success())
+                    .unwrap_or(false)
+            })
+    }
 }
 
 // Захватывает лок если трек свободен. Возвращает true если лок теперь наш.
@@ -736,10 +772,26 @@ fn get_history(app: AppHandle, slug: String) -> Result<Vec<HistoryEntry>, String
 fn open_track_path(app: AppHandle, slug: String, variant: String) -> Result<(), String> {
     let config = read_local_config(&app)?;
     let full_path = track_dir(&config.group_folder_path, &slug).join(&variant);
-    std::process::Command::new("open")
-        .arg(full_path.to_str().ok_or("invalid path")?)
+    let path_str = full_path.to_str().ok_or("invalid path")?;
+
+    #[cfg(target_os = "windows")]
+    std::process::Command::new("cmd")
+        .args(["/C", "start", "", path_str])
         .spawn()
         .map_err(|e| e.to_string())?;
+
+    #[cfg(target_os = "macos")]
+    std::process::Command::new("open")
+        .arg(path_str)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+
+    #[cfg(target_os = "linux")]
+    std::process::Command::new("xdg-open")
+        .arg(path_str)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+
     Ok(())
 }
 
