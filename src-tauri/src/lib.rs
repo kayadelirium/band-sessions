@@ -548,6 +548,30 @@ fn create_project(app: AppHandle, slug: String) -> Result<Vec<TrackState>, Strin
     Ok(scan_projects(&config.group_folder_path))
 }
 
+/// Удаляет папку трека. Только если нет вариантов проекта (uninitialized или disabled).
+#[tauri::command]
+fn delete_project(app: AppHandle, slug: String) -> Result<Vec<TrackState>, String> {
+    let config = read_local_config(&app)?;
+    let dir = track_dir(&config.group_folder_path, &slug);
+    if !dir.exists() {
+        return Err(format!("папка '{slug}' не найдена"));
+    }
+    let has_variants = fs::read_dir(&dir)
+        .map(|entries| {
+            entries.filter_map(|e| e.ok()).any(|e| {
+                let name = e.file_name();
+                let s = name.to_string_lossy();
+                s.ends_with(".logicx") || s.ends_with(".band")
+            })
+        })
+        .unwrap_or(false);
+    if has_variants {
+        return Err("нельзя удалить трек с файлами проекта".to_string());
+    }
+    fs::remove_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(scan_projects(&config.group_folder_path))
+}
+
 /// Инициализирует .session.json в существующей папке без него
 #[tauri::command]
 fn init_project(app: AppHandle, slug: String) -> Result<Vec<TrackState>, String> {
@@ -798,6 +822,7 @@ pub fn run() {
             get_notes,
             update_note,
             delete_note,
+            delete_project,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

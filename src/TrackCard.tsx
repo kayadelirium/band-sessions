@@ -185,9 +185,27 @@ export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory,
           </button>
         )}
         {!track.uninitialized && (
-          <>
-            <button className="btn btn--ghost" onClick={onOpenHistory}>история</button>
-          </>
+          <button className="btn btn--ghost" onClick={onOpenHistory}>история</button>
+        )}
+        {(track.uninitialized || track.disabled) && (
+          <button
+            className="btn btn--danger"
+            disabled={loading}
+            onClick={async () => {
+              if (!confirm(`Удалить трек «${name}»? Это удалит папку целиком.`)) return;
+              setLoading(true);
+              try {
+                const tracks = await invoke<TrackState[]>("delete_project", { slug: track.slug });
+                onUpdate(tracks);
+              } catch (e) {
+                alert(String(e));
+              } finally {
+                setLoading(false);
+              }
+            }}
+          >
+            удалить
+          </button>
         )}
       </div>
     </div>
