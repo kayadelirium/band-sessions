@@ -7,6 +7,9 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
+use tauri::menu::{Menu, MenuItem};
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use tauri_plugin_notification::NotificationExt;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -84,6 +87,10 @@ fn local_config_path(app: &AppHandle) -> Result<PathBuf, String> {
     let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     Ok(dir.join("local_config.json"))
+}
+
+fn track_display_name(slug: &str) -> String {
+    slug.replace('-', " ")
 }
 
 fn projects_path(group_folder: &str) -> PathBuf {
@@ -312,6 +319,7 @@ fn start_watcher(app: AppHandle) -> Result<(), String> {
         let mut auto_locked: HashSet<String> = HashSet::new();
         let mut last_daw_check = Instant::now();
         let min_process_interval = Duration::from_secs(30);
+        let mut prev_locks: HashMap<String, Option<String>> = HashMap::new(); // slug → locked_by
 
         loop {
             match rx.recv_timeout(tick) {
@@ -369,6 +377,30 @@ fn start_watcher(app: AppHandle) -> Result<(), String> {
             if pending_session && now.duration_since(session_last_event) >= debounce {
                 pending_session = false;
                 let tracks = scan_projects(&group_thread);
+
+                // Уведомления о действиях партнёра
+                if let Ok(config) = read_local_config(&app_thread) {
+                    for track in &tracks {
+                        let current_lock = track.lock.as_ref().map(|l| l.held_by.clone());
+                        let prev_lock = prev_locks.get(&track.slug).cloned().flatten();
+                        let me = &config.user_name;
+
+                        match (&current_lock, &prev_lock) {
+                            (Some(by), None) if by != me => {
+                                let name = track_display_name(&track.slug);
+                                send_notification(&app_thread, "Band Sessions", &format!("{} работает над «{}»", by, name));
+                            }
+                            (None, Some(by)) if by != me => {
+                                let name = track_display_name(&track.slug);
+                                send_notification(&app_thread, "Band Sessions", &format!("{} завершил работу над «{}»", by, name));
+                            }
+                            _ => {}
+                        }
+
+                        prev_locks.insert(track.slug.clone(), current_lock);
+                    }
+                }
+
                 let _ = app_thread.emit("tracks-updated", &tracks);
             }
 
@@ -817,11 +849,62 @@ fn get_notes(app: AppHandle, slug: String) -> Result<Vec<NoteEntry>, String> {
 // ── App entry ─────────────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
+fn send_notification(app: &AppHandle, title: &str, body: &str) {
+    let _ = app.notification()
+        .builder()
+        .title(title)
+        .body(body)
+        .show();
+}
+
 pub fn run() {
     tauri::Builder::default()
         .manage(WatcherHandle(Mutex::new(None)))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
+        .setup(|app| {
+            // Трей
+            let show = MenuItem::with_id(app, "show", "Открыть", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "Выйти", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show, &quit])?;
+
+            TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
+                .menu(&menu)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "show" => {
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.show();
+                            let _ = w.set_focus();
+                        }
+                    }
+                    "quit" => app.exit(0),
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                        let app = tray.app_handle();
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.show();
+                            let _ = w.set_focus();
+                        }
+                    }
+                })
+                .build(app)?;
+
+            // Скрывать окно вместо закрытия
+            let win = app.get_webview_window("main").unwrap();
+            let win_clone = win.clone();
+            win.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = win_clone.hide();
+                }
+            });
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             get_local_config,
             save_local_config,

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { isPermissionGranted, requestPermission } from "@tauri-apps/plugin-notification";
 import { LocalConfig, TrackState } from "./types";
 import TrackCard from "./TrackCard";
 import TrackHistory from "./TrackHistory";
@@ -24,6 +25,10 @@ export default function App() {
       .then((cfg) => setConfig(cfg))
       .catch(console.error)
       .finally(() => setLoading(false));
+
+    isPermissionGranted().then((granted) => {
+      if (!granted) requestPermission();
+    });
   }, []);
 
   const refreshTracks = useCallback(async () => {
