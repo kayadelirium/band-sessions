@@ -76,7 +76,7 @@ export default function App() {
   }
 
   if (notesSlug) {
-    return <TrackNotes slug={notesSlug} onBack={() => setNotesSlug(null)} onUpdate={setTracks} />;
+    return <TrackNotes slug={notesSlug} currentUser={config!.user_name} onBack={() => setNotesSlug(null)} onUpdate={setTracks} />;
   }
 
   if (needsSetup || showSetup) {
@@ -94,26 +94,39 @@ export default function App() {
       <header className="app__header">
         <div className="app__brand">
           <img src="/icon-32.png" className="app__icon" alt="" />
-          <span className="app__title">band sessions</span>
+          <span className="app__title breadcrumb__item--dim">Band Sessions</span>
         </div>
-        <div className="app__meta">
+        <div className="header-right">
           <span className="app__user">{config!.user_name}</span>
-          <button className="btn btn--ghost btn--sm app__meta-btn" onClick={refreshTracks}>
-            обновить
+          <button className="btn-icon btn-icon--add app__meta-btn" title="новый проект" onClick={() => setNewProjectSlug("")}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
           </button>
-          <button className="btn btn--ghost btn--sm app__meta-btn" onClick={() => setShowSetup(true)}>
-            настройки
+          <button className="btn-icon app__meta-btn" title="обновить" onClick={refreshTracks}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>
+            </svg>
+          </button>
+          <button className="btn-icon app__meta-btn" title="настройки" onClick={() => setShowSetup(true)}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>
+            </svg>
           </button>
           <div className="app__menu-wrap">
-            <button className="btn btn--ghost btn--sm app__menu-btn" onClick={() => setMenuOpen(o => !o)}>
-              ···
-            </button>
+            <button className="btn-icon app__menu-btn" title="меню" onClick={() => setMenuOpen(o => !o)}>···</button>
             {menuOpen && (
               <div className="app__dropdown" onMouseLeave={() => setMenuOpen(false)}>
+                <button className="app__dropdown-item" onClick={() => { setNewProjectSlug(""); setMenuOpen(false); }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  проект
+                </button>
                 <button className="app__dropdown-item" onClick={() => { refreshTracks(); setMenuOpen(false); }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
                   обновить
                 </button>
                 <button className="app__dropdown-item" onClick={() => { setShowSetup(true); setMenuOpen(false); }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
                   настройки
                 </button>
               </div>
@@ -189,14 +202,6 @@ export default function App() {
                 onOpenNotes={() => setNotesSlug(track.slug)}
               />
             ))}
-            {newProjectSlug === null && (
-              <button
-                className="btn btn--ghost btn--new-project"
-                onClick={() => setNewProjectSlug("")}
-              >
-                + новый проект
-              </button>
-            )}
           </>
         )}
       </main>

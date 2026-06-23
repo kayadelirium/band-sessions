@@ -38,47 +38,65 @@ export default function Setup({ initial, onSave, onCancel }: Props) {
   }
 
   return (
-    <div className="setup">
-      <h1 className="setup__title">band sessions</h1>
-      <p className="setup__subtitle">настройка для этого устройства</p>
-
-      <div className="setup__field">
-        <label>твоё имя</label>
-        <input
-          value={userName}
-          onChange={(e) => setUserName(e.target.value)}
-          placeholder="kaya"
-        />
-      </div>
-
-      <div className="setup__field">
-        <label>папка группы на Яндекс.Диске</label>
-        <div className="setup__folder-row">
-          <input
-            value={folderPath}
-            onChange={(e) => setFolderPath(e.target.value)}
-            placeholder="/Users/kaya/Yandex.Disk/Группа"
-            readOnly
-          />
-          <button className="btn btn--ghost" onClick={pickFolder}>
-            выбрать
+    <div className="app">
+      <header className="app__header app__header--3col">
+        {onCancel ? (
+          <button className="btn-back" title="назад" onClick={onCancel}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </button>
+        ) : (
+          <div />
+        )}
+        <div className="breadcrumbs">
+          <span className="breadcrumb__item breadcrumb__item--dim">Band Sessions</span>
+          <span className="breadcrumb__sep">›</span>
+          <span className="breadcrumb__item breadcrumb__item--active">настройки</span>
+        </div>
+        <div className="header-right">
+          <button className="btn-icon btn-icon--accent" title="сохранить" onClick={handleSave}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+            </svg>
           </button>
         </div>
-        <span className="setup__hint">
-          внутри должна быть папка projects/ — создай её заранее в Finder
-        </span>
-      </div>
+      </header>
 
-      <div className="setup__actions">
-        <button className="btn btn--primary" onClick={handleSave}>
-          сохранить
-        </button>
-        {onCancel && (
-          <button className="btn btn--ghost" onClick={onCancel}>
-            отмена
-          </button>
-        )}
-      </div>
+      <main className="setup__fields">
+        <div className="setup__field">
+          <label>твоё имя</label>
+          <input
+            value={userName}
+            onChange={(e) => setUserName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
+            placeholder="kaya"
+            autoFocus={!userName}
+          />
+        </div>
+
+        <div className="setup__field">
+          <label>папка группы на Яндекс.Диске</label>
+          <div className="setup__folder-row">
+            <input
+              value={folderPath}
+              onChange={(e) => setFolderPath(e.target.value)}
+              placeholder="/Users/kaya/Yandex.Disk/Группа"
+              readOnly
+            />
+            <button className="btn-icon" title="выбрать папку" onClick={pickFolder}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+              </svg>
+            </button>
+          </div>
+          {!folderPath && (
+            <span className="setup__hint">
+              внутри должна быть папка projects/ — создай её заранее в Finder
+            </span>
+          )}
+        </div>
+      </main>
     </div>
   );
 }

@@ -5,11 +5,12 @@ import { trackDisplayName, formatDate } from "./utils";
 
 interface Props {
   slug: string;
+  currentUser: string;
   onBack: () => void;
   onUpdate: (tracks: TrackState[]) => void;
 }
 
-export default function TrackNotes({ slug, onBack, onUpdate }: Props) {
+export default function TrackNotes({ slug, currentUser, onBack, onUpdate }: Props) {
   const [notes, setNotes] = useState<NoteEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
@@ -65,15 +66,29 @@ export default function TrackNotes({ slug, onBack, onUpdate }: Props) {
 
   return (
     <div className="app">
-      <header className="app__header">
-        <div className="history__title-row">
-          <button className="btn btn--ghost btn--sm" onClick={onBack}>← назад</button>
-          <span className="app__title">{trackDisplayName(slug)}</span>
-          <span className="history__count">заметки</span>
+      <header className="app__header app__header--3col">
+        <button className="btn-back" title="назад" onClick={onBack}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </button>
+        <div className="breadcrumbs">
+          <span className="breadcrumb__item breadcrumb__item--dim">Band Sessions</span>
+          <span className="breadcrumb__sep">›</span>
+          <button className="breadcrumb__item breadcrumb__link" title="вернуться к трекам" onClick={onBack}>{trackDisplayName(slug)}</button>
+          <span className="breadcrumb__sep">›</span>
+          <span className="breadcrumb__item breadcrumb__item--active">заметки</span>
         </div>
-        <button className="btn btn--ghost btn--sm" onClick={() => { setNoteInput(""); setAdding(true); setEditingAt(null); }}>
-          + заметка
-        </button>
+        <div className="header-right">
+          {!loading && notes.length > 0 && (
+            <span className="history__count-badge">{notes.length} заметок</span>
+          )}
+          <button className="btn-icon btn-icon--add" title="добавить заметку" onClick={() => { setNoteInput(""); setAdding(true); setEditingAt(null); }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </button>
+        </div>
       </header>
 
       <main>
@@ -93,8 +108,16 @@ export default function TrackNotes({ slug, onBack, onUpdate }: Props) {
             />
             <div className="track-card__note-edit-actions">
               <span className="track-card__note-hint">⌘↵ сохранить · esc отмена</span>
-              <button className="btn btn--primary btn--sm" onClick={handleAdd} disabled={saving}>сохранить</button>
-              <button className="btn btn--ghost btn--sm" onClick={() => { setAdding(false); setNoteInput(""); }}>отмена</button>
+              <button className="btn-icon btn-icon--accent" title="сохранить" onClick={handleAdd} disabled={saving}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </button>
+              <button className="btn-icon" title="отмена" onClick={() => { setAdding(false); setNoteInput(""); }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
             </div>
           </div>
         )}
@@ -106,33 +129,13 @@ export default function TrackNotes({ slug, onBack, onUpdate }: Props) {
         {!loading && notes.length > 0 && (
           <div className="history__list">
             {notes.map((entry, i) => (
-              <div key={i} className="history-entry">
+              <div key={i} className="history-entry note-entry">
                 <div className="history-entry__header">
-                  <span className="history-entry__by">{entry.by}</span>
+                  <span className={`history-entry__by ${entry.by === currentUser ? "note-author--me" : "note-author--other"}`}>{entry.by}</span>
                   <span className="history-entry__date">{formatDate(entry.at)}</span>
-                  <div className="note-entry__actions">
-                    <button
-                      className="btn-delete-note btn-edit-note"
-                      onClick={() => startEdit(entry)}
-                    >
-                      изменить
-                    </button>
-                    <button
-                      className="btn-delete-note"
-                      onClick={async () => {
-                        const updated = await invoke<NoteEntry[]>("delete_note", { slug, at: entry.at });
-                        setNotes(updated);
-                        const tracks = await invoke<TrackState[]>("scan_tracks");
-                        onUpdate(tracks);
-                      }}
-                    >
-                      удалить
-                    </button>
-                  </div>
                 </div>
-
                 {editingAt === entry.at ? (
-                  <div className="track-card__note-edit" style={{ marginTop: 6 }}>
+                  <div className="track-card__note-edit">
                     <textarea
                       autoFocus
                       className="note-textarea"
@@ -146,12 +149,47 @@ export default function TrackNotes({ slug, onBack, onUpdate }: Props) {
                     />
                     <div className="track-card__note-edit-actions">
                       <span className="track-card__note-hint">⌘↵ сохранить · esc отмена</span>
-                      <button className="btn btn--primary btn--sm" onClick={() => handleUpdate(entry.at)}>сохранить</button>
-                      <button className="btn btn--ghost btn--sm" onClick={() => setEditingAt(null)}>отмена</button>
+                      <button className="btn-icon btn-icon--accent" title="сохранить" onClick={() => handleUpdate(entry.at)}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      </button>
+                      <button className="btn-icon" title="отмена" onClick={() => setEditingAt(null)}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                      </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="history-entry__note">{entry.text}</div>
+                  <div className="note-entry__bottom">
+                    <div className="history-entry__note">{entry.text}</div>
+                    <div className="note-entry__actions">
+                      <button
+                        className="btn-icon btn-icon--note-action btn-edit-note"
+                        title="редактировать"
+                        onClick={() => startEdit(entry)}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                      </button>
+                      <button
+                        className="btn-icon btn-icon--note-action btn-delete-note"
+                        title="удалить"
+                        onClick={async () => {
+                          const updated = await invoke<NoteEntry[]>("delete_note", { slug, at: entry.at });
+                          setNotes(updated);
+                          const tracks = await invoke<TrackState[]>("scan_tracks");
+                          onUpdate(tracks);
+                        }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             ))}

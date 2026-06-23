@@ -88,10 +88,13 @@ export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory,
             <div key={v} className="variant-row">
               <span className="variant-row__name">{v}</span>
               <button
-                className="btn btn--ghost btn--sm"
+                className="btn-icon"
+                title={`открыть ${v} в DAW`}
                 onClick={() => invoke("open_track_path", { slug: track.slug, variant: v })}
               >
-                открыть
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                </svg>
               </button>
             </div>
           ))}
@@ -100,22 +103,29 @@ export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory,
 
       {!track.uninitialized && !editingNote && (
         <div className="track-card__note-block">
+          <span className="track-card__note-label">последняя заметка</span>
           {track.track_note ? (
-            <>
-              <span className="track-card__note-label">последний комментарий</span>
-              <button
-                className="track-card__note-text"
-                onClick={() => { setNoteInput(track.track_note!); setIsNewNote(false); setEditingNote(true); }}
-              >
-                {track.track_note}
-              </button>
-            </>
+            <button
+              className="track-card__note-text"
+              title="редактировать заметку"
+              onClick={() => { setNoteInput(track.track_note!); setIsNewNote(false); setEditingNote(true); }}
+            >
+              {track.track_note}
+            </button>
           ) : (
             <span className="track-card__note-empty">заметок пока нет</span>
           )}
           <div className="track-card__note-actions">
-            <button className="btn btn--ghost btn--sm" onClick={onOpenNotes}>все заметки</button>
-            <button className="btn btn--ghost btn--sm" onClick={() => { setNoteInput(""); setIsNewNote(true); setEditingNote(true); }}>+</button>
+            <button className="btn-icon" title="все заметки к треку" onClick={onOpenNotes}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            </button>
+            <button className="btn-icon btn-icon--add" title="добавить заметку" onClick={() => { setNoteInput(""); setIsNewNote(true); setEditingNote(true); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+            </button>
           </div>
         </div>
       )}
@@ -136,60 +146,69 @@ export default function TrackCard({ track, currentUser, onUpdate, onOpenHistory,
           />
           <div className="track-card__note-edit-actions">
             <span className="track-card__note-hint">⌘↵ сохранить · esc отмена</span>
-            <button className="btn btn--primary btn--sm" onClick={handleSaveNote} disabled={loading}>сохранить</button>
-            <button className="btn btn--ghost btn--sm" onClick={() => { setEditingNote(false); setNoteInput(""); setIsNewNote(false); }}>отмена</button>
+            <button className="btn-icon btn-icon--accent" title="сохранить" onClick={handleSaveNote} disabled={loading}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </button>
+            <button className="btn-icon" title="отмена" onClick={() => { setEditingNote(false); setNoteInput(""); setIsNewNote(false); }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
           </div>
         </div>
       )}
 
-      <div className="track-card__status">
-        {track.uninitialized && (
-          <span className="status status--uninit">не инициализирован</span>
-        )}
-        {!track.uninitialized && track.disabled && (
-          <span className="status status--disabled">вариантов не найдено</span>
-        )}
-        {!track.uninitialized && !track.disabled && !track.lock && (
-          <span className="status status--free">свободно</span>
-        )}
-        {isLockedByMe && (
-          <span className="status status--mine">
-            ты работаешь — {formatLockDuration(track.lock!.since)}
-          </span>
-        )}
-        {isLockedByOther && (
-          <span className="status status--locked">
-            {track.lock!.held_by} работает прямо сейчас
-          </span>
-        )}
-      </div>
-
-      {track.file_modified_at && !track.uninitialized && (
-        <div className="track-card__saved">
-          сохранён {formatLockDuration(track.file_modified_at)} назад
+      {!track.uninitialized && (
+        <div className="track-card__activity-block">
+          <span className="track-card__note-label">последние действия</span>
+          <div className="track-card__activity-status">
+            {track.disabled && <span className="status status--disabled">вариантов не найдено</span>}
+            {!track.disabled && !track.lock && <span className="status status--free">свободно</span>}
+            {isLockedByMe && (
+              <span className="status status--mine">ты работаешь — {formatLockDuration(track.lock!.since)}</span>
+            )}
+            {isLockedByOther && (
+              <span className="status status--locked">{track.lock!.held_by} работает прямо сейчас</span>
+            )}
+            {track.file_modified_at && (
+              <span className="track-card__saved">сохранён {formatLockDuration(track.file_modified_at)} назад</span>
+            )}
+          </div>
+          {track.last_activity && (
+            <div className="track-card__activity">
+              {track.last_activity.by}
+              {track.last_activity.note && ` — ${track.last_activity.note}`}
+              {track.last_activity.at && `, ${formatDate(track.last_activity.at)}`}
+            </div>
+          )}
+          <div className="track-card__note-actions">
+            <button className="btn-icon" title="история версий трека" onClick={onOpenHistory}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </button>
+          </div>
         </div>
       )}
 
-      {track.last_activity && !track.uninitialized && (
-        <div className="track-card__activity">
-          {track.last_activity.by}
-          {track.last_activity.note && ` — ${track.last_activity.note}`}
-          {track.last_activity.at && `, ${formatDate(track.last_activity.at)}`}
+      {track.uninitialized && (
+        <div className="track-card__status">
+          <span className="status status--uninit">не инициализирован</span>
         </div>
       )}
 
       <div className="track-card__actions">
         {track.uninitialized && (
-          <button className="btn btn--ghost" onClick={handleInit} disabled={loading}>
+          <button className="btn btn--ghost" title="создать .session.json в папке трека" onClick={handleInit} disabled={loading}>
             инициализировать
           </button>
-        )}
-        {!track.uninitialized && (
-          <button className="btn btn--ghost" onClick={onOpenHistory}>история</button>
         )}
         {(track.uninitialized || track.disabled) && (
           <button
             className="btn btn--danger"
+            title="удалить папку трека"
             disabled={loading}
             onClick={async () => {
               if (!confirm(`Удалить трек «${name}»? Это удалит папку целиком.`)) return;

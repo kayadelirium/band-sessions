@@ -20,16 +20,25 @@ export default function TrackHistory({ slug, onBack }: Props) {
 
   return (
     <div className="app">
-      <header className="app__header">
-        <div className="history__title-row">
-          <button className="btn btn--ghost btn--sm" onClick={onBack}>
-            ← назад
+      <header className="app__header app__header--3col">
+        <button className="btn-back" title="назад" onClick={onBack}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
           </button>
-          <span className="app__title">{trackDisplayName(slug)}</span>
+        <div className="breadcrumbs">
+          <span className="breadcrumb__item breadcrumb__item--dim">Band Sessions</span>
+          <span className="breadcrumb__sep">›</span>
+          <button className="breadcrumb__item breadcrumb__link" title="вернуться к трекам" onClick={onBack}>{trackDisplayName(slug)}</button>
+          <span className="breadcrumb__sep">›</span>
+          <span className="breadcrumb__item breadcrumb__item--active">история</span>
         </div>
-        <span className="history__count">
-          {loading ? "" : `${entries.length} записей`}
-        </span>
+
+        <div className="header-right">
+          {!loading && (
+            <span className="history__count-badge">{entries.length} записей</span>
+          )}
+        </div>
       </header>
 
       <main className="history__list">
