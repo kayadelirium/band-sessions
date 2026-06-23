@@ -57,6 +57,7 @@
 ### Требования
 
 - macOS
+- Один из поддерживаемых DAW (см. ниже)
 - Яндекс.Диск с общей папкой (расшарить через веб-интерфейс Диска)
 
 ### Первый запуск
@@ -80,6 +81,23 @@ npm run tauri build   # → .app и .dmg в src-tauri/target/release/bundle/
 ```
 
 Партнёру без подписи разработчика: открывать через правый клик → "Открыть" (обход Gatekeeper).
+
+---
+
+## Поддерживаемые DAW
+
+| DAW | Форматы |
+|---|---|
+| Logic Pro / GarageBand | `.logicx`, `.band` |
+| Ableton Live | `.als` |
+| Reaper | `.rpp` |
+| Pro Tools | `.ptx`, `.ptf` |
+| Cubase / Nuendo | `.cpr` |
+| Bitwig Studio | `.bwproject` |
+| FL Studio | `.flp` |
+| Digital Performer | `.dpdoc` |
+
+Приложение автоматически определяет какой DAW запущен и снимает лок при его закрытии.
 
 ---
 
